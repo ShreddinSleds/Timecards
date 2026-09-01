@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "equip": "508-018",
+      "desc": "—",
+      "date": "2026-08-31",
+      "start": "06:00",
+      "stop": "09:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "9:00 AM",
+      "raw": 3,
+      "rounded": 3
+    },
+    {
+      "equip": "302-038",
+      "desc": "Slow stroke",
+      "date": "2026-08-31",
+      "start": "09:00",
+      "stop": "15:00",
+      "startLabel": "9:00 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 6,
+      "rounded": 6
+    }
+  ],
+  "equipmentDB": [
+    {
+      "equip": "302-038",
+      "desc": "Slow stroke"
+    },
+    {
+      "equip": "508-018",
+      "desc": ""
+    }
+  ],
+  "savedAt": "2026-09-01T02:39:18.631Z"
+}
