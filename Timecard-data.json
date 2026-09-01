@@ -13,6 +13,18 @@
       "id": "emti4t1sk151il"
     },
     {
+      "equip": "101-036",
+      "desc": "Setup",
+      "date": "2026-08-25",
+      "start": "07:00",
+      "stop": "15:00",
+      "startLabel": "7:00 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 8,
+      "rounded": 8,
+      "id": "emti4tks12xqyz"
+    },
+    {
       "equip": "508-018",
       "desc": "—",
       "date": "2026-08-31",
@@ -51,5 +63,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T03:52:47.371Z"
+  "savedAt": "2026-09-01T03:53:11.658Z"
 }
