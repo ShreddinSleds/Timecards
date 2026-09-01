@@ -355,6 +355,79 @@
   }
   .gh-status.ok{ color: #7fbf7f; }
   .gh-status.err{ color: var(--danger); }
+  .tc-day{
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tc-day:last-of-type{
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  .tc-day-header{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+  }
+  .tc-entries{
+    display:flex;
+    flex-direction: column;
+  }
+  .tc-entry{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-top: 1px dashed var(--line);
+  }
+  .tc-entry:first-child{ border-top: none; padding-top: 0; }
+  .tc-entry-main b{ font-size: 0.9rem; }
+  .tc-entry-desc{
+    display:block;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    margin-top: 1px;
+  }
+  .tc-entry-time{
+    text-align: right;
+    color: var(--text-dim);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tc-day-ot{
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--amber);
+  }
+  .tc-week-totals{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 14px;
+  }
+  .tc-week-totals > div{ text-align: center; }
+  .tc-week-totals .label{
+    display:block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .tc-week-totals .value{
+    display:block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
 </style>
 </head>
 <body>
@@ -425,6 +498,7 @@
     <button class="btn btn-ghost" id="clearBtn">Clear This Week</button>
     <button class="btn btn-copy" id="copyBtn">Copy Message</button>
   </div>
+  <button class="btn btn-ghost" id="shareBtn" style="margin-top:10px;">Share…</button>
 </div>
 
 <div class="section-title">Payroll Log <span class="log-note">— not included in the text</span></div>
@@ -449,7 +523,37 @@
       <span class="value" id="logOt20Hours">0 hrs</span>
     </div>
   </div>
+  <div class="gh-status" id="weeklyOtNote" style="display:none;"></div>
 </div>
+
+<details class="collapsible">
+  <summary>Full Weekly Timecard</summary>
+  <div class="card">
+    <div id="timecardBody"></div>
+    <div class="empty" id="timecardEmpty">No entries for this week.</div>
+    <button class="btn btn-ghost" id="timecardShareBtn" style="margin-top:10px;">Share…</button>
+  </div>
+</details>
+
+<details class="collapsible">
+  <summary>Holidays</summary>
+  <div class="card">
+    <div class="field row2">
+      <div>
+        <label for="holidayDate">Date</label>
+        <input type="date" id="holidayDate">
+      </div>
+      <div>
+        <label for="holidayLabel">Name (optional)</label>
+        <input type="text" id="holidayLabel" placeholder="e.g. Labor Day" autocomplete="off">
+      </div>
+    </div>
+    <button class="btn btn-ghost" id="holidayAddBtn">Add Holiday</button>
+    <div class="gh-status" style="margin-top:10px;">The 9 standard holidays below are calculated automatically every year — add anything extra (like a company floating holiday) above.</div>
+    <div class="entries" id="holidayList" style="margin-top:12px;"></div>
+    <div class="empty" id="holidayEmpty">Loading holidays…</div>
+  </div>
+</details>
 
 <div class="section-title">Local Backup File</div>
 <div class="card">
@@ -496,6 +600,9 @@
   let editingId = null;
   let selectedWeekStart = null;
   let equipmentDB = []; // [{ equip, desc }], most-recently-used first
+  let holidays = []; // [{ date, label }]
+  let holidaySet = new Set(); // recomputed whenever holidays[] changes
+  let fullTimecardText = ''; // plain-text version of the Full Weekly Timecard, for sharing
 
   const equipInput = document.getElementById('equip');
   const descInput = document.getElementById('desc');
@@ -509,12 +616,19 @@
   const outputEl = document.getElementById('output');
   const totalRoundedEl = document.getElementById('totalRounded');
   const copyBtn = document.getElementById('copyBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const timecardShareBtn = document.getElementById('timecardShareBtn');
   const clearBtn = document.getElementById('clearBtn');
   const toast = document.getElementById('toast');
   const weekSelect = document.getElementById('weekSelect');
   const searchInput = document.getElementById('searchInput');
   const searchResultsEl = document.getElementById('searchResults');
   const searchEmptyEl = document.getElementById('searchEmpty');
+  const holidayDateInput = document.getElementById('holidayDate');
+  const holidayLabelInput = document.getElementById('holidayLabel');
+  const holidayAddBtn = document.getElementById('holidayAddBtn');
+  const holidayListEl = document.getElementById('holidayList');
+  const holidayEmptyEl = document.getElementById('holidayEmpty');
   const exportBtn = document.getElementById('exportBtn');
   const importBtn = document.getElementById('importBtn');
   const importFileInput = document.getElementById('importFileInput');
@@ -688,7 +802,132 @@
 
   const STORAGE_KEY_ENTRIES = 'timecard_entries';
   const STORAGE_KEY_EQUIPMENT = 'timecard_equipmentDB';
+  const STORAGE_KEY_HOLIDAYS = 'timecard_holidays';
   const STORAGE_KEY_GH_CONFIG = 'timecard_gh_config';
+
+  // ---------- Holidays ----------
+  // Standard holidays are calculated automatically every year from the rules below —
+  // nothing to maintain. The Holidays UI is only for extra/company-specific dates on
+  // top of these (holidays[] holds those custom entries; standard ones aren't stored).
+
+  // nth weekday (0=Sun..6=Sat) of a given month (0=Jan..11=Dec). n is 1-based.
+  function nthWeekdayOfMonth(year, month, weekday, n){
+    const first = new Date(year, month, 1);
+    const offset = (weekday - first.getDay() + 7) % 7;
+    const day = 1 + offset + (n - 1) * 7;
+    return new Date(year, month, day);
+  }
+
+  function lastWeekdayOfMonth(year, month, weekday){
+    const last = new Date(year, month + 1, 0); // last day of month
+    const offset = (last.getDay() - weekday + 7) % 7;
+    return new Date(year, month, last.getDate() - offset);
+  }
+
+  function addDays(date, n){
+    const d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
+  }
+
+  function getStandardHolidays(year){
+    const thanksgiving = nthWeekdayOfMonth(year, 10, 4, 4); // 4th Thursday of November
+    const list = [
+      { date: new Date(year, 0, 1), label: "New Year's Day" },
+      { date: nthWeekdayOfMonth(year, 0, 1, 3), label: 'Martin Luther King Jr. Day' }, // 3rd Monday of Jan
+      { date: lastWeekdayOfMonth(year, 4, 1), label: 'Memorial Day' }, // last Monday of May
+      { date: new Date(year, 6, 4), label: 'Fourth of July' },
+      { date: nthWeekdayOfMonth(year, 8, 1, 1), label: 'Labor Day' }, // 1st Monday of Sept
+      { date: thanksgiving, label: 'Thanksgiving Day' },
+      { date: addDays(thanksgiving, 1), label: 'Friday after Thanksgiving' },
+      { date: addDays(thanksgiving, 2), label: 'Saturday after Thanksgiving' },
+      { date: new Date(year, 11, 25), label: 'Christmas Day' }
+    ];
+    return list.map(h => ({ date: dateToISO(h.date), label: h.label }));
+  }
+
+  function loadHolidays(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY_HOLIDAYS);
+      if(raw){ holidays = JSON.parse(raw); }
+    }catch(err){
+      console.error('Holiday load failed:', err);
+      holidays = [];
+    }
+    refreshHolidaySet();
+    renderHolidayList();
+  }
+
+  function saveHolidays(){
+    try{
+      localStorage.setItem(STORAGE_KEY_HOLIDAYS, JSON.stringify(holidays));
+    }catch(err){
+      console.error('Holiday save failed:', err);
+    }
+    refreshHolidaySet();
+    renderHolidayList();
+    render();
+  }
+
+  // Rebuilds holidaySet/holidayLabels from standard (auto) holidays for this year and next,
+  // merged with any custom ones. Recomputes every call so it never goes stale year to year.
+  let holidayLabels = {};
+  function refreshHolidaySet(){
+    const year = new Date().getFullYear();
+    const combined = [...getStandardHolidays(year), ...getStandardHolidays(year + 1)];
+    holidaySet = new Set(combined.map(h => h.date));
+    holidayLabels = {};
+    combined.forEach(h => { holidayLabels[h.date] = h.label; });
+    holidays.forEach(h => {
+      if(h.date){
+        holidaySet.add(h.date);
+        holidayLabels[h.date] = h.label || 'Holiday';
+      }
+    });
+  }
+
+  function renderHolidayList(){
+    const year = new Date().getFullYear();
+    const standard = [...getStandardHolidays(year), ...getStandardHolidays(year + 1)]
+      .map(h => ({ ...h, custom: false }));
+    const custom = holidays.map(h => ({ ...h, custom: true }));
+    const combined = [...standard, ...custom].sort((a, b) => a.date.localeCompare(b.date));
+
+    holidayListEl.innerHTML = '';
+    holidayEmptyEl.style.display = combined.length ? 'none' : 'block';
+
+    combined.forEach(h => {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      row.innerHTML = `
+        <div class="info">
+          <b>${escapeHtml(h.label || 'Holiday')}</b>
+          <div class="desc">${dayDateLabel(h.date)}${h.custom ? '' : ' · auto'}</div>
+        </div>
+        ${h.custom ? `<div class="actions-col"><button class="del" data-date="${h.date}" title="Remove">&times;</button></div>` : ''}
+      `;
+      holidayListEl.appendChild(row);
+    });
+
+    holidayListEl.querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        holidays = holidays.filter(h => h.date !== btn.dataset.date);
+        saveHolidays();
+      });
+    });
+  }
+
+  holidayAddBtn.addEventListener('click', () => {
+    const date = holidayDateInput.value;
+    const label = holidayLabelInput.value.trim();
+    if(!date){ holidayDateInput.focus(); return; }
+    holidays = holidays.filter(h => h.date !== date); // replace if same date re-added
+    holidays.push({ date, label: label || 'Holiday' });
+    holidayDateInput.value = '';
+    holidayLabelInput.value = '';
+    saveHolidays();
+    showToast('Holiday added');
+  });
 
   // ---------- GitHub backup ----------
   let ghConfig = { owner: '', repo: '', path: 'timecard-data.json', token: '' };
@@ -1132,19 +1371,91 @@
     return days;
   }
 
+  // ---------- Short-rest rule ----------
+  // If less than 9 hours pass between the end of one day's work and the start of the next,
+  // every hour of that next shift is paid at whatever rate the prior shift ended at (carries
+  // over — e.g. if the prior shift ran into double time, the next short-rest shift is also
+  // double time, not just bumped to 1.5x). Computed across ALL entries chronologically, not
+  // just the week being viewed, since a Friday-to-Saturday turnaround still counts.
+
+  function combineDateTime(iso, timeStr){
+    const [y, m, d] = iso.split('-').map(Number);
+    const [hh, mm] = timeStr.split(':').map(Number);
+    return new Date(y, m - 1, d, hh, mm);
+  }
+
+  // One entry per calendar date, spanning from that date's earliest start to latest end
+  // (multiple equipment worked back-to-back the same day count as one shift).
+  function getDailyShiftBounds(){
+    const byDate = {};
+    entries.forEach(e => {
+      const start = combineDateTime(e.date, e.start);
+      const end = new Date(start.getTime() + e.raw * 3600000); // e.raw already handles overnight wrap
+      if(!byDate[e.date]){
+        byDate[e.date] = { date: e.date, start, end };
+      } else {
+        if(start < byDate[e.date].start){ byDate[e.date].start = start; }
+        if(end > byDate[e.date].end){ byDate[e.date].end = end; }
+      }
+    });
+    return byDate;
+  }
+
+  // Returns a Map of date -> { regular, ot15, ot20, shortRest }, walked in chronological
+  // order across every worked day so short-rest carry-over cascades correctly even across
+  // several back-to-back tight turnarounds.
+  function computeAllDailyOT(){
+    const allDays = groupEntriesByDay(entries).slice().sort((a, b) => a.date.localeCompare(b.date));
+    const bounds = getDailyShiftBounds();
+    const result = new Map();
+    let prevDate = null;
+    let prevFinal = null;
+
+    allDays.forEach(g => {
+      const base = computeDayOvertime(g.date, g.hours);
+      let final = base;
+      let shortRest = false;
+
+      if(prevDate){
+        const gapHours = (bounds[g.date].start - bounds[prevDate].end) / 3600000;
+        if(gapHours < 9){
+          shortRest = true;
+          // Carry over the prior shift's ending rate — floor of 1.5x, but stays at 2x
+          // if that's the rate the prior shift ended at.
+          if(prevFinal.ot20 > 0){
+            final = { regular: 0, ot15: 0, ot20: g.hours };
+          } else {
+            final = { regular: 0, ot15: g.hours, ot20: 0 };
+          }
+        }
+      }
+
+      result.set(g.date, { ...final, shortRest });
+      prevDate = g.date;
+      prevFinal = final;
+    });
+
+    return result;
+  }
+
   // Overtime rules, applied per day:
   // - Saturday: all hours at 1.5x
   // - Sunday: all hours at 2x
   // - Mon-Fri: first 8 hrs regular, hrs 8-12 at 1.5x, anything over 12 at 2x
   function computeDayOvertime(iso, hours){
+    if(holidaySet.has(iso)){
+      return { regular: 0, ot15: 0, ot20: hours };
+    }
     const [y, m, d] = iso.split('-').map(Number);
     const dow = new Date(y, m - 1, d).getDay(); // 0 = Sun, 6 = Sat
 
     if(dow === 0){ // Sunday
       return { regular: 0, ot15: 0, ot20: hours };
     }
-    if(dow === 6){ // Saturday
-      return { regular: 0, ot15: hours, ot20: 0 };
+    if(dow === 6){ // Saturday — all OT, but hours past 12 escalate to double time
+      const ot15 = Math.min(hours, 12);
+      const ot20 = Math.max(hours - 12, 0);
+      return { regular: 0, ot15, ot20 };
     }
     const regular = Math.min(hours, 8);
     const over8 = Math.max(hours - 8, 0);
@@ -1157,9 +1468,12 @@
     const totalRounded = visible.reduce((sum, e) => sum + e.rounded, 0);
     totalRoundedEl.textContent = formatHours(totalRounded) + ' hrs';
 
+    const otByDate = computeAllDailyOT();
+
     if(visible.length === 0){
       outputEl.value = '';
-      buildLog([]);
+      buildLog([], otByDate);
+      renderFullTimecard([], otByDate);
       return;
     }
 
@@ -1168,16 +1482,27 @@
       `${dayAbbrev(g.date)} ${formatHours(g.hours)}hrs ${g.equipment.join(', ')}`
     );
     outputEl.value = lines.join('\n');
-    buildLog(days);
+    buildLog(days, otByDate);
+    renderFullTimecard(visible, otByDate);
   }
 
-  function buildLog(days){
+  // Shared by the Payroll Log and Full Weekly Timecard so both reflect the same weekly-OT math.
+  function applyWeeklyOT(totalRegular, totalOt15){
+    if(totalRegular > 40){
+      const excess = totalRegular - 40;
+      return { regular: totalRegular - excess, ot15: totalOt15 + excess, excess };
+    }
+    return { regular: totalRegular, ot15: totalOt15, excess: 0 };
+  }
+
+  function buildLog(days, otByDate){
     const logBody = document.getElementById('logBody');
     logBody.innerHTML = '';
 
     if(days.length === 0){
       document.getElementById('logEmpty').style.display = 'block';
       document.getElementById('logTotals').style.display = 'none';
+      document.getElementById('weeklyOtNote').style.display = 'none';
       return;
     }
     document.getElementById('logEmpty').style.display = 'none';
@@ -1185,13 +1510,16 @@
 
     let totalHours = 0, totalRegular = 0, totalOt15 = 0, totalOt20 = 0;
     days.forEach(g => {
-      const ot = computeDayOvertime(g.date, g.hours);
+      const ot = otByDate.get(g.date) || computeDayOvertime(g.date, g.hours);
+      const shortRest = !!ot.shortRest;
       totalHours += g.hours;
       totalRegular += ot.regular;
       totalOt15 += ot.ot15;
       totalOt20 += ot.ot20;
 
       const noteParts = [];
+      if(holidaySet.has(g.date)) noteParts.push(holidayLabels[g.date] || 'Holiday');
+      if(shortRest) noteParts.push('Short-rest');
       if(ot.ot20 > 0) noteParts.push(`${formatHours(ot.ot20)} @2x`);
       if(ot.ot15 > 0) noteParts.push(`${formatHours(ot.ot15)} @1.5x`);
       const note = noteParts.length ? ` <span class="log-ot">(${noteParts.join(', ')})</span>` : '';
@@ -1206,10 +1534,125 @@
       logBody.appendChild(row);
     });
 
+    // Weekly OT: after 40 Mon-Fri regular hours, the excess becomes 1.5x instead of straight time.
+    // (Sat/Sun/holiday hours never land in "regular" above, so this only ever touches weekday hours.)
+    const weeklyOtNote = document.getElementById('weeklyOtNote');
+    const adjusted = applyWeeklyOT(totalRegular, totalOt15);
+    totalRegular = adjusted.regular;
+    totalOt15 = adjusted.ot15;
+    if(adjusted.excess > 0){
+      weeklyOtNote.textContent = `Includes ${formatHours(adjusted.excess)} hrs weekly OT (over 40 Mon–Fri hours)`;
+      weeklyOtNote.style.display = 'block';
+    } else {
+      weeklyOtNote.style.display = 'none';
+    }
+
     document.getElementById('logTotalHours').textContent = formatHours(totalHours) + ' hrs';
     document.getElementById('logRegularHours').textContent = formatHours(totalRegular) + ' hrs';
     document.getElementById('logOt15Hours').textContent = formatHours(totalOt15) + ' hrs';
     document.getElementById('logOt20Hours').textContent = formatHours(totalOt20) + ' hrs';
+  }
+
+  // Detailed, printable-style view of the viewed week: every entry's times and description,
+  // plus each day's hourly/overtime breakdown and a week-total footer.
+  function renderFullTimecard(visible, otByDate){
+    const body = document.getElementById('timecardBody');
+    const emptyEl = document.getElementById('timecardEmpty');
+    body.innerHTML = '';
+
+    if(visible.length === 0){
+      emptyEl.style.display = 'block';
+      fullTimecardText = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    const byDate = {};
+    const order = [];
+    visible.forEach(e => {
+      if(!byDate[e.date]){ byDate[e.date] = []; order.push(e.date); }
+      byDate[e.date].push(e);
+    });
+
+    let weekTotalHours = 0, weekRegular = 0, weekOt15 = 0, weekOt20 = 0;
+    const textLines = ['Full Weekly Timecard', ''];
+
+    order.forEach(date => {
+      const dayEntries = byDate[date];
+      const dayHours = dayEntries.reduce((s, e) => s + e.rounded, 0);
+      const ot = otByDate.get(date) || { regular: 0, ot15: 0, ot20: 0, shortRest: false };
+      weekTotalHours += dayHours;
+      weekRegular += ot.regular;
+      weekOt15 += ot.ot15;
+      weekOt20 += ot.ot20;
+
+      const dayNoteParts = [];
+      if(holidaySet.has(date)) dayNoteParts.push(holidayLabels[date] || 'Holiday');
+      if(ot.shortRest) dayNoteParts.push('Short-rest');
+      const dayNote = dayNoteParts.length ? ` (${dayNoteParts.join(', ')})` : '';
+
+      const otBadges = [];
+      if(ot.regular > 0) otBadges.push(`${formatHours(ot.regular)} reg`);
+      if(ot.ot15 > 0) otBadges.push(`${formatHours(ot.ot15)} @1.5x`);
+      if(ot.ot20 > 0) otBadges.push(`${formatHours(ot.ot20)} @2x`);
+
+      const section = document.createElement('div');
+      section.className = 'tc-day';
+      section.innerHTML = `
+        <div class="tc-day-header">
+          <span>${dayDateLabel(date)}${escapeHtml(dayNote)}</span>
+          <span>${formatHours(dayHours)} hrs</span>
+        </div>
+        <div class="tc-entries">
+          ${dayEntries.map(e => `
+            <div class="tc-entry">
+              <div class="tc-entry-main">
+                <b>${escapeHtml(e.equip)}</b>
+                <span class="tc-entry-desc">${escapeHtml(e.desc)}</span>
+              </div>
+              <div class="tc-entry-time">${e.startLabel}–${e.stopLabel} · ${formatHours(e.rounded)} hrs</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="tc-day-ot">${otBadges.join(' · ')}</div>
+      `;
+      body.appendChild(section);
+
+      textLines.push(`${dayDateLabel(date)}${dayNote} — ${formatHours(dayHours)} hrs`);
+      dayEntries.forEach(e => {
+        textLines.push(`  ${e.equip} — ${e.desc} — ${e.startLabel}–${e.stopLabel} — ${formatHours(e.rounded)} hrs`);
+      });
+      if(otBadges.length){ textLines.push(`  (${otBadges.join(', ')})`); }
+      textLines.push('');
+    });
+
+    const adjusted = applyWeeklyOT(weekRegular, weekOt15);
+    weekRegular = adjusted.regular;
+    weekOt15 = adjusted.ot15;
+
+    const totalsRow = document.createElement('div');
+    totalsRow.className = 'tc-week-totals';
+    totalsRow.innerHTML = `
+      <div><span class="label">Total</span><span class="value">${formatHours(weekTotalHours)} hrs</span></div>
+      <div><span class="label">Regular</span><span class="value">${formatHours(weekRegular)} hrs</span></div>
+      <div><span class="label">OT 1.5x</span><span class="value">${formatHours(weekOt15)} hrs</span></div>
+      <div><span class="label">OT 2x</span><span class="value">${formatHours(weekOt20)} hrs</span></div>
+    `;
+    body.appendChild(totalsRow);
+    textLines.push('Week Totals');
+    textLines.push(`Total: ${formatHours(weekTotalHours)} hrs`);
+    textLines.push(`Regular: ${formatHours(weekRegular)} hrs`);
+    textLines.push(`OT 1.5x: ${formatHours(weekOt15)} hrs`);
+    textLines.push(`OT 2x: ${formatHours(weekOt20)} hrs`);
+    if(adjusted.excess > 0){
+      const note = document.createElement('div');
+      note.className = 'gh-status';
+      note.style.marginTop = '8px';
+      note.textContent = `Includes ${formatHours(adjusted.excess)} hrs weekly OT (over 40 Mon–Fri hours)`;
+      body.appendChild(note);
+      textLines.push(`(Includes ${formatHours(adjusted.excess)} hrs weekly OT over 40 Mon–Fri hours)`);
+    }
+    fullTimecardText = textLines.join('\n');
   }
 
   function enterEditMode(id){
@@ -1316,6 +1759,37 @@
     }
   });
 
+  // Opens the native share sheet (Messages, Mail, AirDrop, etc.) when available;
+  // falls back to copying to the clipboard on browsers/devices without it (e.g. desktop).
+  async function shareOrCopy(text, title){
+    if(!text) return;
+    if(navigator.share){
+      try{
+        await navigator.share({ title: title || 'Time Card', text });
+      }catch(err){
+        // AbortError just means the person cancelled the share sheet — not a real failure.
+        if(err && err.name !== 'AbortError'){
+          console.error('Share failed:', err);
+        }
+      }
+      return;
+    }
+    try{
+      await navigator.clipboard.writeText(text);
+      showToast('Sharing isn\'t available here — copied instead');
+    }catch(err){
+      showToast('Could not share or copy', true);
+    }
+  }
+
+  shareBtn.addEventListener('click', () => {
+    shareOrCopy(outputEl.value, 'Time Card Summary');
+  });
+
+  timecardShareBtn.addEventListener('click', () => {
+    shareOrCopy(fullTimecardText, 'Full Weekly Timecard');
+  });
+
   function showToast(msg, isError){
     toast.textContent = msg;
     toast.classList.toggle('error', !!isError);
@@ -1329,6 +1803,7 @@
   });
 
   loadGhConfig();
+  loadHolidays();
   loadEntries();
   autoRestoreOnOpen();
 </script>
