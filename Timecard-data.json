@@ -203,9 +203,25 @@
       "raw": 4,
       "rounded": 4,
       "id": "emtixulky1lkax"
+    },
+    {
+      "equip": "204-005",
+      "desc": "Engine cutting out. Fuel filters",
+      "date": "2026-09-01",
+      "start": "11:00",
+      "stop": "15:00",
+      "startLabel": "11:00 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 4,
+      "rounded": 4,
+      "id": "emtj5g7nh1t6ui"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "204-005",
+      "desc": "Engine cutting out. Fuel filters"
+    },
     {
       "equip": "302-038",
       "desc": "Slow stroke, found broken adjustment knob"
@@ -227,13 +243,9 @@
       "desc": ""
     },
     {
-      "equip": "204-005",
-      "desc": ""
-    },
-    {
       "equip": "508-018",
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T17:25:48.015Z"
+  "savedAt": "2026-09-01T20:58:33.710Z"
 }
