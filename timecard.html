@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Time Card</title>
+<title>Timecard</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Timecard">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#191b1e">
 <style>
   :root{
     --bg: #191b1e;
@@ -233,6 +240,22 @@
     margin-bottom: 12px;
     padding: 0 2px;
   }
+  .toggle-row{
+    display:flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-row input[type="checkbox"]{
+    width: 17px;
+    height: 17px;
+    accent-color: var(--amber);
+    flex-shrink: 0;
+  }
   .total-line .label{
     color: var(--text-dim);
     font-size: 0.85rem;
@@ -433,7 +456,10 @@
 <body>
 
 <header>
-  <h1>Time Card</h1>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <img src="icon-512.png" alt="" width="32" height="32" style="border-radius:8px; flex-shrink:0;">
+    <h1>Time Card</h1>
+  </div>
   <span class="date" id="weekLabel"></span>
 </header>
 
@@ -446,7 +472,7 @@
   <summary>Search Entries</summary>
   <div class="card">
     <div class="field">
-      <label for="searchInput">Equipment # or Description</label>
+      <label for="searchInput">Equipment/Job # or Description</label>
       <input type="text" id="searchInput" placeholder="e.g. XXX-XXX or repair" autocomplete="off">
     </div>
     <div class="entries" id="searchResults"></div>
@@ -456,7 +482,7 @@
 
 <div class="card">
   <div class="field">
-    <label for="equip">Equipment #</label>
+    <label for="equip">Equipment or Job #</label>
     <input type="text" id="equip" list="equipList" placeholder="e.g. XXX-XXX" autocomplete="off">
     <datalist id="equipList"></datalist>
   </div>
@@ -493,6 +519,10 @@
     <span class="label">Total</span>
     <span class="value" id="totalRounded">0 hrs</span>
   </div>
+  <label class="toggle-row" for="includeTotalsToggle">
+    <input type="checkbox" id="includeTotalsToggle">
+    Include pay rate totals in message
+  </label>
   <textarea id="output" readonly placeholder="Your text message will build here as you add entries..."></textarea>
   <div class="actions">
     <button class="btn btn-ghost" id="clearBtn">Clear This Week</button>
@@ -617,6 +647,7 @@
   const totalRoundedEl = document.getElementById('totalRounded');
   const copyBtn = document.getElementById('copyBtn');
   const shareBtn = document.getElementById('shareBtn');
+  const includeTotalsToggle = document.getElementById('includeTotalsToggle');
   const timecardShareBtn = document.getElementById('timecardShareBtn');
   const clearBtn = document.getElementById('clearBtn');
   const toast = document.getElementById('toast');
@@ -804,6 +835,7 @@
   const STORAGE_KEY_EQUIPMENT = 'timecard_equipmentDB';
   const STORAGE_KEY_HOLIDAYS = 'timecard_holidays';
   const STORAGE_KEY_GH_CONFIG = 'timecard_gh_config';
+  const STORAGE_KEY_INCLUDE_TOTALS = 'timecard_include_totals';
 
   // ---------- Holidays ----------
   // Standard holidays are calculated automatically every year from the rules below —
@@ -1481,6 +1513,23 @@
     const lines = days.map(g =>
       `${dayAbbrev(g.date)} ${formatHours(g.hours)}hrs ${g.equipment.join(', ')}`
     );
+
+    if(includeTotalsToggle.checked){
+      let sumRegular = 0, sumOt15 = 0, sumOt20 = 0;
+      days.forEach(g => {
+        const ot = otByDate.get(g.date) || computeDayOvertime(g.date, g.hours);
+        sumRegular += ot.regular;
+        sumOt15 += ot.ot15;
+        sumOt20 += ot.ot20;
+      });
+      const adjusted = applyWeeklyOT(sumRegular, sumOt15);
+      lines.push('');
+      lines.push(`Total: ${formatHours(totalRounded)} hrs`);
+      lines.push(`Regular: ${formatHours(adjusted.regular)} hrs`);
+      lines.push(`OT 1.5x: ${formatHours(adjusted.ot15)} hrs`);
+      lines.push(`OT 2x: ${formatHours(sumOt20)} hrs`);
+    }
+
     outputEl.value = lines.join('\n');
     buildLog(days, otByDate);
     renderFullTimecard(visible, otByDate);
@@ -1800,6 +1849,12 @@
   // allow Enter key in stop time field to submit
   stopInput.addEventListener('keydown', (e) => {
     if(e.key === 'Enter'){ addBtn.click(); }
+  });
+
+  includeTotalsToggle.checked = localStorage.getItem(STORAGE_KEY_INCLUDE_TOTALS) === 'true';
+  includeTotalsToggle.addEventListener('change', () => {
+    localStorage.setItem(STORAGE_KEY_INCLUDE_TOTALS, includeTotalsToggle.checked);
+    render();
   });
 
   loadGhConfig();
