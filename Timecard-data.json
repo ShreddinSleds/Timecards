@@ -40,6 +40,18 @@
       "equip": "101-036",
       "desc": "Setup",
       "date": "2026-08-27",
+      "start": "06:00",
+      "stop": "15:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 9,
+      "rounded": 9,
+      "id": "emti4ut645ix96"
+    },
+    {
+      "equip": "101-036",
+      "desc": "Setup",
+      "date": "2026-08-27",
       "start": "07:00",
       "stop": "15:00",
       "startLabel": "7:00 AM",
@@ -87,5 +99,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T03:53:53.676Z"
+  "savedAt": "2026-09-01T03:54:09.282Z"
 }
