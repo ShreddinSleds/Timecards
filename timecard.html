@@ -335,6 +335,11 @@
   <span class="date" id="weekLabel"></span>
 </header>
 
+<div class="card" style="padding:12px 14px;">
+  <label for="weekSelect">Viewing Week</label>
+  <select id="weekSelect"></select>
+</div>
+
 <div class="card">
   <div class="field">
     <label for="equip">Equipment #</label>
@@ -376,7 +381,7 @@
   </div>
   <textarea id="output" readonly placeholder="Your text message will build here as you add entries..."></textarea>
   <div class="actions">
-    <button class="btn btn-ghost" id="clearBtn">Clear All</button>
+    <button class="btn btn-ghost" id="clearBtn">Clear This Week</button>
     <button class="btn btn-copy" id="copyBtn">Copy Message</button>
   </div>
 </div>
@@ -403,6 +408,16 @@
       <span class="value" id="logOt20Hours">0 hrs</span>
     </div>
   </div>
+</div>
+
+<div class="section-title">Local Backup File</div>
+<div class="card">
+  <div class="actions">
+    <button class="btn btn-ghost" id="exportBtn">Export to File</button>
+    <button class="btn btn-ghost" id="importBtn">Import from File</button>
+  </div>
+  <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+  <div class="gh-status" id="exportStatus">Covers all weeks — good for a manual backup or moving to a new phone.</div>
 </div>
 
 <div class="section-title">GitHub Backup</div>
@@ -435,7 +450,8 @@
 
 <script>
   let entries = [];
-  let editingIndex = null;
+  let editingId = null;
+  let selectedWeekStart = null;
   let equipmentDB = []; // [{ equip, desc }], most-recently-used first
 
   const equipInput = document.getElementById('equip');
@@ -452,6 +468,11 @@
   const copyBtn = document.getElementById('copyBtn');
   const clearBtn = document.getElementById('clearBtn');
   const toast = document.getElementById('toast');
+  const weekSelect = document.getElementById('weekSelect');
+  const exportBtn = document.getElementById('exportBtn');
+  const importBtn = document.getElementById('importBtn');
+  const importFileInput = document.getElementById('importFileInput');
+  const exportStatus = document.getElementById('exportStatus');
   const ghOwnerInput = document.getElementById('ghOwner');
   const ghRepoInput = document.getElementById('ghRepo');
   const ghPathInput = document.getElementById('ghPath');
@@ -538,6 +559,66 @@
     const weekday = dt.toLocaleDateString(undefined, { weekday: 'short' });
     return `${weekday} ${m}/${d}`;
   }
+
+  let idCounter = 0;
+  function generateId(){
+    idCounter += 1;
+    return 'e' + Date.now().toString(36) + idCounter + Math.random().toString(36).slice(2, 6);
+  }
+
+  function localDateFromISO(iso){
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function dateToISO(d){
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 10);
+  }
+
+  // Which Saturday-start work week does this date fall in? Returns that Saturday as an ISO string.
+  function weekStartISOForDate(iso){
+    const { start } = getWorkWeek(localDateFromISO(iso));
+    return dateToISO(start);
+  }
+
+  function weekLabelForStart(weekStartIso, isCurrent){
+    const start = localDateFromISO(weekStartIso);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const label = `${shortDate(start)}\u2013${shortDate(end)}`;
+    return isCurrent ? `This Week (${label})` : label;
+  }
+
+  // Rebuilds the week dropdown from whatever weeks exist in entries, plus the current week always.
+  function refreshWeekSelector(){
+    const currentWeekStart = weekStartISOForDate(todayISO());
+    const weekSet = new Set(entries.map(e => weekStartISOForDate(e.date)));
+    weekSet.add(currentWeekStart);
+    const weeks = Array.from(weekSet).sort().reverse();
+
+    if(!selectedWeekStart || !weeks.includes(selectedWeekStart)){
+      selectedWeekStart = currentWeekStart;
+    }
+
+    weekSelect.innerHTML = '';
+    weeks.forEach(ws => {
+      const opt = document.createElement('option');
+      opt.value = ws;
+      opt.textContent = weekLabelForStart(ws, ws === currentWeekStart);
+      weekSelect.appendChild(opt);
+    });
+    weekSelect.value = selectedWeekStart;
+  }
+
+  function getVisibleEntries(){
+    return entries.filter(e => weekStartISOForDate(e.date) === selectedWeekStart);
+  }
+
+  weekSelect.addEventListener('change', () => {
+    selectedWeekStart = weekSelect.value;
+    render();
+  });
 
   document.getElementById('weekLabel').textContent = weekRangeLabel(new Date());
   document.getElementById('entryDate').value = todayISO();
@@ -680,6 +761,26 @@
     }
   }
 
+  async function fetchGithubBackupPayload(){
+    const resp = await fetch(ghApiUrl(), { headers: ghHeaders() });
+    if(resp.status === 404) return null; // no backup saved yet — not an error
+    if(!resp.ok) throw new Error(`GitHub responded ${resp.status}`);
+    const data = await resp.json();
+    return JSON.parse(base64ToUtf8(data.content));
+  }
+
+  function applyRestoredPayload(payload){
+    entries = payload.entries || [];
+    equipmentDB = payload.equipmentDB || [];
+    entries.forEach(e => { if(!e.id){ e.id = generateId(); } });
+    exitEditMode();
+    selectedWeekStart = null; // let refreshWeekSelector pick the best default
+    localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(entries));
+    localStorage.setItem(STORAGE_KEY_EQUIPMENT, JSON.stringify(equipmentDB));
+    refreshEquipDatalist();
+    render();
+  }
+
   async function restoreFromGitHub(){
     if(!ghIsConfigured()){
       updateGhStatus('Add your GitHub username, repo, and token first.', 'err');
@@ -690,21 +791,11 @@
     }
     updateGhStatus('Restoring…');
     try{
-      const resp = await fetch(ghApiUrl(), { headers: ghHeaders() });
-      if(resp.status === 404){
+      const payload = await fetchGithubBackupPayload();
+      if(!payload){
         throw new Error('No backup file found in that repo yet');
       }
-      if(!resp.ok){
-        throw new Error(`GitHub responded ${resp.status}`);
-      }
-      const data = await resp.json();
-      const payload = JSON.parse(base64ToUtf8(data.content));
-      entries = payload.entries || [];
-      equipmentDB = payload.equipmentDB || [];
-      localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(entries));
-      localStorage.setItem(STORAGE_KEY_EQUIPMENT, JSON.stringify(equipmentDB));
-      refreshEquipDatalist();
-      render();
+      applyRestoredPayload(payload);
       const when = payload.savedAt ? new Date(payload.savedAt).toLocaleString() : 'unknown time';
       updateGhStatus('Restored backup from ' + when, 'ok');
       showToast('Restored from GitHub');
@@ -715,9 +806,79 @@
     }
   }
 
+  // Runs once on app open (if GitHub Backup is configured): silently pulls the latest
+  // backup so every device shows the same data without needing a manual restore first.
+  async function autoRestoreOnOpen(){
+    if(!ghIsConfigured()) return;
+    updateGhStatus('Checking GitHub for the latest backup…');
+    try{
+      const payload = await fetchGithubBackupPayload();
+      if(!payload){
+        updateGhStatus('Configured. Auto-backup is on.');
+        return;
+      }
+      applyRestoredPayload(payload);
+      const when = payload.savedAt ? new Date(payload.savedAt).toLocaleString() : 'unknown time';
+      updateGhStatus('Synced from GitHub — ' + when, 'ok');
+    }catch(err){
+      console.error('Auto-restore failed:', err);
+      updateGhStatus('Could not reach GitHub — showing local data.', 'err');
+    }
+  }
+
   ghSaveBtn.addEventListener('click', saveGhConfig);
   ghBackupBtn.addEventListener('click', () => { clearTimeout(ghBackupTimer); backupToGitHub(); });
   ghRestoreBtn.addEventListener('click', restoreFromGitHub);
+
+  // ---------- Local backup file (export/import) ----------
+  exportBtn.addEventListener('click', () => {
+    const payload = { entries, equipmentDB, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `timecard-backup-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Backup file downloaded');
+  });
+
+  importBtn.addEventListener('click', () => importFileInput.click());
+
+  importFileInput.addEventListener('change', () => {
+    const file = importFileInput.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const payload = JSON.parse(reader.result);
+        if(!Array.isArray(payload.entries)){
+          throw new Error('This file doesn\'t look like a timecard backup');
+        }
+        if(!confirm('This replaces everything currently in the app with this backup file. Continue?')){
+          importFileInput.value = '';
+          return;
+        }
+        entries = payload.entries || [];
+        equipmentDB = payload.equipmentDB || [];
+        entries.forEach(e => { if(!e.id){ e.id = generateId(); } });
+        exitEditMode();
+        selectedWeekStart = null; // let refreshWeekSelector pick the best default
+        saveEntries();
+        saveEquipmentDB();
+        refreshEquipDatalist();
+        render();
+        showToast('Backup file imported');
+      }catch(err){
+        console.error('Import failed:', err);
+        showToast('Import failed — invalid file', true);
+      }
+      importFileInput.value = '';
+    };
+    reader.readAsText(file);
+  });
 
   function saveEntries(){
     try{
@@ -780,6 +941,11 @@
       console.error('Load failed:', err);
       entries = [];
     }
+    let neededBackfill = false;
+    entries.forEach(e => {
+      if(!e.id){ e.id = generateId(); neededBackfill = true; }
+    });
+    if(neededBackfill){ saveEntries(); }
     try{
       const rawDB = localStorage.getItem(STORAGE_KEY_EQUIPMENT);
       if(rawDB){ equipmentDB = JSON.parse(rawDB); }
@@ -792,13 +958,19 @@
   }
 
   function render(){
+    refreshWeekSelector();
+    const visible = getVisibleEntries();
+
     entriesEl.querySelectorAll('.entry').forEach(el => el.remove());
 
-    if(entries.length === 0){
+    if(visible.length === 0){
       emptyMsg.style.display = 'block';
+      emptyMsg.textContent = entries.length === 0
+        ? 'No entries yet — add your first one above.'
+        : 'No entries for this week.';
     } else {
       emptyMsg.style.display = 'none';
-      entries.forEach((e, i) => {
+      visible.forEach(e => {
         const div = document.createElement('div');
         div.className = 'entry';
         div.innerHTML = `
@@ -812,8 +984,8 @@
             <div class="raw">${e.startLabel}–${e.stopLabel}</div>
           </div>
           <div class="actions-col">
-            <button class="edit" data-i="${i}" title="Edit">&#9998;</button>
-            <button class="del" data-i="${i}" title="Remove">&times;</button>
+            <button class="edit" data-id="${e.id}" title="Edit">&#9998;</button>
+            <button class="del" data-id="${e.id}" title="Remove">&times;</button>
           </div>
         `;
         entriesEl.appendChild(div);
@@ -822,9 +994,9 @@
 
     entriesEl.querySelectorAll('.del').forEach(btn => {
       btn.addEventListener('click', () => {
-        const i = parseInt(btn.dataset.i);
-        if(editingIndex === i){ exitEditMode(); }
-        entries.splice(i, 1);
+        const id = btn.dataset.id;
+        if(editingId === id){ exitEditMode(); }
+        entries = entries.filter(x => x.id !== id);
         saveEntries();
         render();
       });
@@ -832,11 +1004,11 @@
 
     entriesEl.querySelectorAll('.edit').forEach(btn => {
       btn.addEventListener('click', () => {
-        enterEditMode(parseInt(btn.dataset.i));
+        enterEditMode(btn.dataset.id);
       });
     });
 
-    buildOutput();
+    buildOutput(visible);
   }
 
   function escapeHtml(str){
@@ -845,10 +1017,10 @@
     return d.innerHTML;
   }
 
-  function groupEntriesByDay(){
+  function groupEntriesByDay(list){
     const days = [];
     const byDate = {};
-    entries.forEach(e => {
+    list.forEach(e => {
       if(!byDate[e.date]){
         const group = { date: e.date, hours: 0, equipment: [] };
         byDate[e.date] = group;
@@ -884,17 +1056,17 @@
     return { regular, ot15, ot20 };
   }
 
-  function buildOutput(){
-    const totalRounded = entries.reduce((sum, e) => sum + e.rounded, 0);
+  function buildOutput(visible){
+    const totalRounded = visible.reduce((sum, e) => sum + e.rounded, 0);
     totalRoundedEl.textContent = formatHours(totalRounded) + ' hrs';
 
-    if(entries.length === 0){
+    if(visible.length === 0){
       outputEl.value = '';
       buildLog([]);
       return;
     }
 
-    const days = groupEntriesByDay();
+    const days = groupEntriesByDay(visible);
     const lines = days.map(g =>
       `${dayAbbrev(g.date)} ${formatHours(g.hours)}hrs ${g.equipment.join(', ')}`
     );
@@ -943,9 +1115,10 @@
     document.getElementById('logOt20Hours').textContent = formatHours(totalOt20) + ' hrs';
   }
 
-  function enterEditMode(index){
-    const e = entries[index];
-    editingIndex = index;
+  function enterEditMode(id){
+    const e = entries.find(x => x.id === id);
+    if(!e) return;
+    editingId = id;
     equipInput.value = e.equip;
     descInput.value = e.desc === '—' ? '' : e.desc;
     dateInput.value = e.date;
@@ -958,7 +1131,7 @@
   }
 
   function exitEditMode(){
-    editingIndex = null;
+    editingId = null;
     addBtn.textContent = 'Add Entry';
     cancelEditBtn.style.display = 'none';
     equipInput.value = '';
@@ -996,9 +1169,12 @@
       rounded: roundUpHalf(raw)
     };
 
-    if(editingIndex !== null){
-      entries[editingIndex] = entryData;
+    if(editingId !== null){
+      const idx = entries.findIndex(x => x.id === editingId);
+      entryData.id = editingId;
+      if(idx !== -1){ entries[idx] = entryData; } else { entries.push(entryData); }
     } else {
+      entryData.id = generateId();
       entries.push(entryData);
     }
 
@@ -1006,7 +1182,10 @@
 
     entries.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
 
-    const wasEditing = editingIndex !== null;
+    // Jump the view to whichever week this entry belongs to, so it's visible right away.
+    selectedWeekStart = weekStartISOForDate(date);
+
+    const wasEditing = editingId !== null;
     equipInput.value = '';
     descInput.value = '';
     equipInput.focus();
@@ -1017,9 +1196,11 @@
   });
 
   clearBtn.addEventListener('click', () => {
-    if(entries.length === 0) return;
-    if(confirm('Clear all entries?')){
-      entries = [];
+    const visible = getVisibleEntries();
+    if(visible.length === 0) return;
+    if(confirm('Clear all entries for this week? Other weeks are not affected.')){
+      const idsToRemove = new Set(visible.map(e => e.id));
+      entries = entries.filter(e => !idsToRemove.has(e.id));
       exitEditMode();
       saveEntries();
       render();
@@ -1052,6 +1233,7 @@
 
   loadGhConfig();
   loadEntries();
+  autoRestoreOnOpen();
 </script>
 </body>
 </html>
