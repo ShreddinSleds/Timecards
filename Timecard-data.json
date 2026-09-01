@@ -13,6 +13,18 @@
       "id": "emtirfuj473k2i"
     },
     {
+      "equip": "204-004",
+      "desc": "—",
+      "date": "2026-08-17",
+      "start": "08:00",
+      "stop": "12:00",
+      "startLabel": "8:00 AM",
+      "stopLabel": "12:00 PM",
+      "raw": 4,
+      "rounded": 4,
+      "id": "emtirg7tp87p5t"
+    },
+    {
       "equip": "101-036",
       "desc": "—",
       "date": "2026-08-18",
@@ -171,6 +183,10 @@
   ],
   "equipmentDB": [
     {
+      "equip": "204-004",
+      "desc": ""
+    },
+    {
       "equip": "107-003",
       "desc": ""
     },
@@ -191,5 +207,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T14:26:22.503Z"
+  "savedAt": "2026-09-01T14:26:39.697Z"
 }
