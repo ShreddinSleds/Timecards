@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Time Card</title>
+<style>
+  :root{
+    --bg: #191b1e;
+    --panel: #232629;
+    --panel-2: #2b2f33;
+    --line: #3a3f44;
+    --text: #edeceb;
+    --text-dim: #9aa0a6;
+    --amber: #f2b705;
+    --amber-dim: #8a6a08;
+    --danger: #c1502e;
+    --radius: 4px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
+  }
+  body{
+    padding: 18px 14px 40px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  header{
+    display:flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--amber);
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  header h1{
+    font-size: 1.4rem;
+    margin:0;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+  }
+  header .date{
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .field{
+    margin-bottom: 12px;
+  }
+  .field:last-child{ margin-bottom: 0; }
+  label{
+    display:block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+  input[type="text"], input[type="number"], input[type="date"], select{
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 11px 10px;
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  select{
+    background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%), linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+    background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 32px;
+  }
+  input:focus{
+    outline: none;
+    border-color: var(--amber);
+  }
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .btn{
+    display:block;
+    width:100%;
+    padding: 13px;
+    border-radius: var(--radius);
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-add{
+    background: var(--amber);
+    color: #1a1a1a;
+  }
+  .btn-add:active{ background: #d9a504; }
+  .btn-ghost{
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+  }
+  .btn-ghost:active{ border-color: var(--text-dim); }
+  .btn-copy{
+    background: #2f5233;
+    color: #d9f2dc;
+  }
+  .btn-copy:active{ background: #274429; }
+  .entries{
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .entry{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber-dim);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .entry .info b{
+    font-size: 0.98rem;
+  }
+  .entry .info .desc{
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+  .entry .hrs{
+    text-align: right;
+    white-space: nowrap;
+  }
+  .entry .hrs .rounded{
+    font-size: 1.05rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .entry .hrs .raw{
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+  .entry .del{
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 1.3rem;
+    line-height: 1;
+    padding: 0 0 0 6px;
+    cursor: pointer;
+  }
+  .entry .edit{
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    line-height: 1;
+    padding: 0 0 0 8px;
+    cursor: pointer;
+  }
+  .entry .actions-col{
+    display:flex;
+    align-items: center;
+  }
+  .empty{
+    color: var(--text-dim);
+    font-size: 0.88rem;
+    text-align: center;
+    padding: 18px 0;
+  }
+  .section-title{
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+    margin: 22px 0 10px;
+  }
+  .total-line{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+    padding: 0 2px;
+  }
+  .total-line .label{
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  .total-line .value{
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  textarea{
+    width:100%;
+    min-height: 130px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 10px;
+    border-radius: var(--radius);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    resize: vertical;
+    margin-bottom: 10px;
+  }
+  .actions{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .toast{
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--amber);
+    color: #1a1a1a;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    font-size: 0.88rem;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+  }
+  .toast.show{
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.error{
+    background: var(--danger);
+    color: #fff;
+  }
+  .log-note{
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+  }
+  .log-row{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 9px 11px;
+    font-size: 0.88rem;
+  }
+  .log-row .log-day{
+    color: var(--text-dim);
+    min-width: 62px;
+  }
+  .log-row .log-equip{
+    flex: 1;
+    text-align: left;
+  }
+  .log-row .log-hrs{
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .log-ot{
+    font-weight: 400;
+    font-size: 0.72rem;
+    color: var(--amber);
+  }
+  .log-totals{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .log-total-item{
+    flex: 1;
+    text-align: center;
+  }
+  .log-total-item .label{
+    display:block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .log-total-item .value{
+    display:block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Time Card</h1>
+  <span class="date" id="weekLabel"></span>
+</header>
+
+<div class="card">
+  <div class="field">
+    <label for="equip">Equipment #</label>
+    <input type="text" id="equip" list="equipList" placeholder="e.g. LB-4200" autocomplete="off">
+    <datalist id="equipList"></datalist>
+  </div>
+  <div class="field">
+    <label for="desc">Description</label>
+    <input type="text" id="desc" placeholder="e.g. hydraulic line repair" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="entryDate">Date</label>
+    <input type="date" id="entryDate">
+  </div>
+  <div class="field row2">
+    <div>
+      <label for="startTime">Start Time</label>
+      <select id="startTime"></select>
+    </div>
+    <div>
+      <label for="stopTime">Stop Time</label>
+      <select id="stopTime"></select>
+    </div>
+  </div>
+  <button class="btn btn-add" id="addBtn">Add Entry</button>
+  <button class="btn btn-ghost" id="cancelEditBtn" style="display:none; margin-top:8px;">Cancel Edit</button>
+</div>
+
+<div class="section-title">Entries</div>
+<div class="entries" id="entries">
+  <div class="empty" id="emptyMsg">No entries yet — add your first one above.</div>
+</div>
+
+<div class="section-title">Summary</div>
+<div class="card">
+  <div class="total-line">
+    <span class="label">Total (rounded)</span>
+    <span class="value" id="totalRounded">0 hrs</span>
+  </div>
+  <textarea id="output" readonly placeholder="Your text message will build here as you add entries..."></textarea>
+  <div class="actions">
+    <button class="btn btn-ghost" id="clearBtn">Clear All</button>
+    <button class="btn btn-copy" id="copyBtn">Copy Message</button>
+  </div>
+</div>
+
+<div class="section-title">Payroll Log <span class="log-note">— not included in the text</span></div>
+<div class="card">
+  <div id="logEmpty" class="empty">Nothing logged yet.</div>
+  <div class="entries" id="logBody"></div>
+  <div id="logTotals" class="log-totals">
+    <div class="log-total-item">
+      <span class="label">Total</span>
+      <span class="value" id="logTotalHours">0 hrs</span>
+    </div>
+    <div class="log-total-item">
+      <span class="label">Regular</span>
+      <span class="value" id="logRegularHours">0 hrs</span>
+    </div>
+    <div class="log-total-item">
+      <span class="label">OT 1.5x</span>
+      <span class="value" id="logOt15Hours">0 hrs</span>
+    </div>
+    <div class="log-total-item">
+      <span class="label">OT 2x</span>
+      <span class="value" id="logOt20Hours">0 hrs</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+  let entries = [];
+  let editingIndex = null;
+  let equipmentDB = []; // [{ equip, desc }], most-recently-used first
+
+  const equipInput = document.getElementById('equip');
+  const descInput = document.getElementById('desc');
+  const dateInput = document.getElementById('entryDate');
+  const startInput = document.getElementById('startTime');
+  const stopInput = document.getElementById('stopTime');
+  const addBtn = document.getElementById('addBtn');
+  const cancelEditBtn = document.getElementById('cancelEditBtn');
+  const entriesEl = document.getElementById('entries');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const outputEl = document.getElementById('output');
+  const totalRoundedEl = document.getElementById('totalRounded');
+  const copyBtn = document.getElementById('copyBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const toast = document.getElementById('toast');
+
+  // Round UP to nearest half hour (e.g. 2.1 -> 2.5, 2.5 -> 2.5, 2.51 -> 3.0)
+  function roundUpHalf(hours){
+    return Math.ceil(hours * 2) / 2;
+  }
+
+  function formatHours(h){
+    // show whole numbers without decimal, halves with .5
+    return (h % 1 === 0) ? String(h) : h.toFixed(1);
+  }
+
+  // "14:30" -> minutes since midnight
+  function toMinutes(hhmm){
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  // "14:30" -> "2:30 PM"
+  function to12Hour(hhmm){
+    const [h, m] = hhmm.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    let h12 = h % 12;
+    if(h12 === 0) h12 = 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+  }
+
+  // duration in decimal hours between start/stop, assumes stop after start;
+  // if stop is earlier in the day than start, assumes it crossed midnight
+  function durationHours(start, stop){
+    let startMin = toMinutes(start);
+    let stopMin = toMinutes(stop);
+    if(stopMin <= startMin){ stopMin += 24 * 60; }
+    return (stopMin - startMin) / 60;
+  }
+
+  function todayISO(){
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 10);
+  }
+
+  // Work week runs Saturday -> Friday. Given a Date, find that week's Sat/Fri bounds.
+  function getWorkWeek(date){
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+    const day = d.getDay(); // 0 = Sun ... 6 = Sat
+    const daysSinceSat = (day + 1) % 7; // Sat->0, Sun->1, Mon->2 ... Fri->6
+    const start = new Date(d);
+    start.setDate(d.getDate() - daysSinceSat);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start, end };
+  }
+
+  function shortDate(d){
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function weekRangeLabel(date){
+    const { start, end } = getWorkWeek(date);
+    return `Week of ${shortDate(start)}\u2013${shortDate(end)}`;
+  }
+
+  // "2026-08-29" -> "Sa" (two-letter weekday abbreviation)
+  function dayAbbrev(iso){
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const names = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    return names[dt.getDay()];
+  }
+
+  // "2026-08-29" -> "Sat 8/29"
+  function dayDateLabel(iso){
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    const weekday = dt.toLocaleDateString(undefined, { weekday: 'short' });
+    return `${weekday} ${m}/${d}`;
+  }
+
+  document.getElementById('weekLabel').textContent = weekRangeLabel(new Date());
+  document.getElementById('entryDate').value = todayISO();
+
+  // Build 48 half-hour options ("00:00" .. "23:30"), labeled in 12-hour format
+  function populateTimeSelect(selectEl){
+    for(let mins = 0; mins < 24 * 60; mins += 30){
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      const value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = to12Hour(value);
+      selectEl.appendChild(opt);
+    }
+  }
+  populateTimeSelect(startInput);
+  populateTimeSelect(stopInput);
+  startInput.value = '07:00';
+  stopInput.value = '15:30';
+
+  const STORAGE_KEY_ENTRIES = 'timecard_entries';
+  const STORAGE_KEY_EQUIPMENT = 'timecard_equipmentDB';
+
+  function saveEntries(){
+    try{
+      localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(entries));
+    }catch(err){
+      console.error('Save failed:', err);
+      showToast('Not saved — browser storage unavailable', true);
+    }
+  }
+
+  function saveEquipmentDB(){
+    try{
+      localStorage.setItem(STORAGE_KEY_EQUIPMENT, JSON.stringify(equipmentDB));
+    }catch(err){
+      console.error('Equipment DB save failed:', err);
+    }
+  }
+
+  // Add/update an equipment number in the database, moving it to the front (most recent first)
+  function recordEquipment(equip, desc){
+    const key = equip.trim();
+    if(!key) return;
+    equipmentDB = equipmentDB.filter(item => item.equip.toLowerCase() !== key.toLowerCase());
+    equipmentDB.unshift({ equip: key, desc: (desc && desc !== '—') ? desc : '' });
+    if(equipmentDB.length > 200){ equipmentDB.length = 200; } // keep it from growing forever
+    refreshEquipDatalist();
+    saveEquipmentDB();
+  }
+
+  function refreshEquipDatalist(){
+    const listEl = document.getElementById('equipList');
+    listEl.innerHTML = '';
+    equipmentDB.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.equip;
+      listEl.appendChild(opt);
+    });
+  }
+
+  // If the typed equipment number matches one we know, and description is still empty,
+  // auto-fill the description that was last used for it.
+  function autofillDescription(){
+    const typed = equipInput.value.trim().toLowerCase();
+    if(!typed || descInput.value.trim()) return;
+    const match = equipmentDB.find(item => item.equip.toLowerCase() === typed);
+    if(match && match.desc){
+      descInput.value = match.desc;
+    }
+  }
+  equipInput.addEventListener('input', autofillDescription);
+  equipInput.addEventListener('change', autofillDescription);
+
+  function loadEntries(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY_ENTRIES);
+      if(raw){ entries = JSON.parse(raw); }
+    }catch(err){
+      console.error('Load failed:', err);
+      entries = [];
+    }
+    try{
+      const rawDB = localStorage.getItem(STORAGE_KEY_EQUIPMENT);
+      if(rawDB){ equipmentDB = JSON.parse(rawDB); }
+    }catch(err){
+      console.error('Equipment DB load failed:', err);
+      equipmentDB = [];
+    }
+    refreshEquipDatalist();
+    render();
+  }
+
+  function render(){
+    entriesEl.querySelectorAll('.entry').forEach(el => el.remove());
+
+    if(entries.length === 0){
+      emptyMsg.style.display = 'block';
+    } else {
+      emptyMsg.style.display = 'none';
+      entries.forEach((e, i) => {
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.innerHTML = `
+          <div class="info">
+            <div class="desc" style="margin-top:0; margin-bottom:2px;">${dayDateLabel(e.date)}</div>
+            <b>${escapeHtml(e.equip)}</b>
+            <div class="desc">${escapeHtml(e.desc)}</div>
+          </div>
+          <div class="hrs">
+            <div class="rounded">${formatHours(e.rounded)} hrs</div>
+            <div class="raw">${e.startLabel}–${e.stopLabel}</div>
+          </div>
+          <div class="actions-col">
+            <button class="edit" data-i="${i}" title="Edit">&#9998;</button>
+            <button class="del" data-i="${i}" title="Remove">&times;</button>
+          </div>
+        `;
+        entriesEl.appendChild(div);
+      });
+    }
+
+    entriesEl.querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.i);
+        if(editingIndex === i){ exitEditMode(); }
+        entries.splice(i, 1);
+        saveEntries();
+        render();
+      });
+    });
+
+    entriesEl.querySelectorAll('.edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        enterEditMode(parseInt(btn.dataset.i));
+      });
+    });
+
+    buildOutput();
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function groupEntriesByDay(){
+    const days = [];
+    const byDate = {};
+    entries.forEach(e => {
+      if(!byDate[e.date]){
+        const group = { date: e.date, hours: 0, equipment: [] };
+        byDate[e.date] = group;
+        days.push(group);
+      }
+      const group = byDate[e.date];
+      group.hours += e.rounded;
+      if(!group.equipment.includes(e.equip)){
+        group.equipment.push(e.equip);
+      }
+    });
+    return days;
+  }
+
+  // Overtime rules, applied per day:
+  // - Saturday: all hours at 1.5x
+  // - Sunday: all hours at 2x
+  // - Mon-Fri: first 8 hrs regular, hrs 8-12 at 1.5x, anything over 12 at 2x
+  function computeDayOvertime(iso, hours){
+    const [y, m, d] = iso.split('-').map(Number);
+    const dow = new Date(y, m - 1, d).getDay(); // 0 = Sun, 6 = Sat
+
+    if(dow === 0){ // Sunday
+      return { regular: 0, ot15: 0, ot20: hours };
+    }
+    if(dow === 6){ // Saturday
+      return { regular: 0, ot15: hours, ot20: 0 };
+    }
+    const regular = Math.min(hours, 8);
+    const over8 = Math.max(hours - 8, 0);
+    const ot15 = Math.min(over8, 4);
+    const ot20 = Math.max(over8 - 4, 0);
+    return { regular, ot15, ot20 };
+  }
+
+  function buildOutput(){
+    const totalRounded = entries.reduce((sum, e) => sum + e.rounded, 0);
+    totalRoundedEl.textContent = formatHours(totalRounded) + ' hrs';
+
+    if(entries.length === 0){
+      outputEl.value = '';
+      buildLog([]);
+      return;
+    }
+
+    const days = groupEntriesByDay();
+    const lines = days.map(g =>
+      `${dayAbbrev(g.date)} ${formatHours(g.hours)}hrs ${g.equipment.join(', ')}`
+    );
+    outputEl.value = lines.join('\n');
+    buildLog(days);
+  }
+
+  function buildLog(days){
+    const logBody = document.getElementById('logBody');
+    logBody.innerHTML = '';
+
+    if(days.length === 0){
+      document.getElementById('logEmpty').style.display = 'block';
+      document.getElementById('logTotals').style.display = 'none';
+      return;
+    }
+    document.getElementById('logEmpty').style.display = 'none';
+    document.getElementById('logTotals').style.display = 'grid';
+
+    let totalHours = 0, totalRegular = 0, totalOt15 = 0, totalOt20 = 0;
+    days.forEach(g => {
+      const ot = computeDayOvertime(g.date, g.hours);
+      totalHours += g.hours;
+      totalRegular += ot.regular;
+      totalOt15 += ot.ot15;
+      totalOt20 += ot.ot20;
+
+      const noteParts = [];
+      if(ot.ot20 > 0) noteParts.push(`${formatHours(ot.ot20)} @2x`);
+      if(ot.ot15 > 0) noteParts.push(`${formatHours(ot.ot15)} @1.5x`);
+      const note = noteParts.length ? ` <span class="log-ot">(${noteParts.join(', ')})</span>` : '';
+
+      const row = document.createElement('div');
+      row.className = 'log-row';
+      row.innerHTML = `
+        <span class="log-day">${dayDateLabel(g.date)}</span>
+        <span class="log-equip">${g.equipment.join(', ')}</span>
+        <span class="log-hrs">${formatHours(g.hours)} hrs${note}</span>
+      `;
+      logBody.appendChild(row);
+    });
+
+    document.getElementById('logTotalHours').textContent = formatHours(totalHours) + ' hrs';
+    document.getElementById('logRegularHours').textContent = formatHours(totalRegular) + ' hrs';
+    document.getElementById('logOt15Hours').textContent = formatHours(totalOt15) + ' hrs';
+    document.getElementById('logOt20Hours').textContent = formatHours(totalOt20) + ' hrs';
+  }
+
+  function enterEditMode(index){
+    const e = entries[index];
+    editingIndex = index;
+    equipInput.value = e.equip;
+    descInput.value = e.desc === '—' ? '' : e.desc;
+    dateInput.value = e.date;
+    startInput.value = e.start;
+    stopInput.value = e.stop;
+    addBtn.textContent = 'Update Entry';
+    cancelEditBtn.style.display = 'block';
+    equipInput.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function exitEditMode(){
+    editingIndex = null;
+    addBtn.textContent = 'Add Entry';
+    cancelEditBtn.style.display = 'none';
+    equipInput.value = '';
+    descInput.value = '';
+    dateInput.value = todayISO();
+    startInput.value = '07:00';
+    stopInput.value = '15:30';
+  }
+
+  cancelEditBtn.addEventListener('click', exitEditMode);
+
+  addBtn.addEventListener('click', () => {
+    const equip = equipInput.value.trim();
+    const desc = descInput.value.trim();
+    const date = dateInput.value || todayISO();
+    const start = startInput.value;
+    const stop = stopInput.value;
+
+    if(!equip){ equipInput.focus(); return; }
+    if(!start){ startInput.focus(); return; }
+    if(!stop){ stopInput.focus(); return; }
+
+    const raw = durationHours(start, stop);
+    if(raw <= 0){ stopInput.focus(); return; }
+
+    const entryData = {
+      equip: equip,
+      desc: desc || '—',
+      date: date,
+      start: start,
+      stop: stop,
+      startLabel: to12Hour(start),
+      stopLabel: to12Hour(stop),
+      raw: raw,
+      rounded: roundUpHalf(raw)
+    };
+
+    if(editingIndex !== null){
+      entries[editingIndex] = entryData;
+    } else {
+      entries.push(entryData);
+    }
+
+    recordEquipment(equip, entryData.desc);
+
+    entries.sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+
+    const wasEditing = editingIndex !== null;
+    equipInput.value = '';
+    descInput.value = '';
+    equipInput.focus();
+    if(wasEditing){ exitEditMode(); }
+
+    saveEntries();
+    render();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    if(entries.length === 0) return;
+    if(confirm('Clear all entries?')){
+      entries = [];
+      exitEditMode();
+      saveEntries();
+      render();
+    }
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    if(!outputEl.value){ return; }
+    try{
+      await navigator.clipboard.writeText(outputEl.value);
+      showToast('Copied to clipboard');
+    }catch(err){
+      outputEl.select();
+      document.execCommand('copy');
+      showToast('Copied to clipboard');
+    }
+  });
+
+  function showToast(msg, isError){
+    toast.textContent = msg;
+    toast.classList.toggle('error', !!isError);
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), isError ? 2400 : 1600);
+  }
+
+  // allow Enter key in stop time field to submit
+  stopInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ addBtn.click(); }
+  });
+
+  loadEntries();
+</script>
+</body>
+</html>
