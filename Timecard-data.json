@@ -3,6 +3,18 @@
     {
       "equip": "101-036",
       "desc": "—",
+      "date": "2026-08-18",
+      "start": "06:00",
+      "stop": "15:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 9,
+      "rounded": 9,
+      "id": "emtirea606bbeo"
+    },
+    {
+      "equip": "101-036",
+      "desc": "—",
       "date": "2026-08-19",
       "start": "06:00",
       "stop": "07:00",
@@ -11,18 +23,6 @@
       "raw": 1,
       "rounded": 1,
       "id": "emtirdnuz4hwp6"
-    },
-    {
-      "equip": "101-036",
-      "desc": "—",
-      "date": "2026-08-19",
-      "start": "06:00",
-      "stop": "15:00",
-      "startLabel": "6:00 AM",
-      "stopLabel": "3:00 PM",
-      "raw": 9,
-      "rounded": 9,
-      "id": "emtirea606bbeo"
     },
     {
       "equip": "204-005",
@@ -175,5 +175,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T14:25:09.381Z"
+  "savedAt": "2026-09-01T14:25:42.759Z"
 }
