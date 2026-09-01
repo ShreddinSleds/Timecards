@@ -197,6 +197,35 @@
     color: var(--text-dim);
     margin: 22px 0 10px;
   }
+  .collapsible{
+    margin: 22px 0 14px;
+  }
+  .collapsible summary{
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-dim);
+    margin: 0 0 10px;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+  }
+  .collapsible summary::-webkit-details-marker{ display: none; }
+  .collapsible summary::after{
+    content: '\25B8';
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    transition: transform 0.15s ease;
+  }
+  .collapsible[open] summary::after{
+    transform: rotate(90deg);
+  }
+  .collapsible .card{
+    margin-bottom: 0;
+  }
   .total-line{
     display:flex;
     justify-content: space-between;
@@ -340,15 +369,27 @@
   <select id="weekSelect"></select>
 </div>
 
+<details class="collapsible">
+  <summary>Search Entries</summary>
+  <div class="card">
+    <div class="field">
+      <label for="searchInput">Equipment # or Description</label>
+      <input type="text" id="searchInput" placeholder="e.g. XXX-XXX or repair" autocomplete="off">
+    </div>
+    <div class="entries" id="searchResults"></div>
+    <div class="empty" id="searchEmpty" style="display:none;">No matches found.</div>
+  </div>
+</details>
+
 <div class="card">
   <div class="field">
     <label for="equip">Equipment #</label>
-    <input type="text" id="equip" list="equipList" placeholder="e.g. LB-4200" autocomplete="off">
+    <input type="text" id="equip" list="equipList" placeholder="e.g. XXX-XXX" autocomplete="off">
     <datalist id="equipList"></datalist>
   </div>
   <div class="field">
     <label for="desc">Description</label>
-    <input type="text" id="desc" placeholder="e.g. hydraulic line repair" autocomplete="off">
+    <input type="text" id="desc" placeholder="e.g. Work or Repairs completed" autocomplete="off">
   </div>
   <div class="field">
     <label for="entryDate">Date</label>
@@ -376,7 +417,7 @@
 <div class="section-title">Summary</div>
 <div class="card">
   <div class="total-line">
-    <span class="label">Total (rounded)</span>
+    <span class="label">Total</span>
     <span class="value" id="totalRounded">0 hrs</span>
   </div>
   <textarea id="output" readonly placeholder="Your text message will build here as you add entries..."></textarea>
@@ -420,31 +461,33 @@
   <div class="gh-status" id="exportStatus">Covers all weeks — good for a manual backup or moving to a new phone.</div>
 </div>
 
-<div class="section-title">GitHub Backup</div>
-<div class="card">
-  <div class="field">
-    <label for="ghOwner">GitHub Username</label>
-    <input type="text" id="ghOwner" placeholder="e.g. johnsmith" autocomplete="off" autocapitalize="off">
+<details class="collapsible">
+  <summary>GitHub Backup</summary>
+  <div class="card">
+    <div class="field">
+      <label for="ghOwner">GitHub Username</label>
+      <input type="text" id="ghOwner" placeholder="e.g. johnsmith" autocomplete="off" autocapitalize="off">
+    </div>
+    <div class="field">
+      <label for="ghRepo">Repository Name</label>
+      <input type="text" id="ghRepo" placeholder="e.g. timecard" autocomplete="off" autocapitalize="off">
+    </div>
+    <div class="field">
+      <label for="ghPath">File Path</label>
+      <input type="text" id="ghPath" placeholder="timecard-data.json" autocomplete="off" autocapitalize="off">
+    </div>
+    <div class="field">
+      <label for="ghToken">Personal Access Token</label>
+      <input type="password" id="ghToken" placeholder="fine-grained token, repo-scoped" autocomplete="off">
+    </div>
+    <button class="btn btn-ghost" id="ghSaveBtn">Save Settings</button>
+    <div class="actions" style="margin-top:10px;">
+      <button class="btn btn-copy" id="ghBackupBtn">Backup Now</button>
+      <button class="btn btn-ghost" id="ghRestoreBtn">Restore from GitHub</button>
+    </div>
+    <div class="gh-status" id="ghStatus">Not configured yet.</div>
   </div>
-  <div class="field">
-    <label for="ghRepo">Repository Name</label>
-    <input type="text" id="ghRepo" placeholder="e.g. timecard" autocomplete="off" autocapitalize="off">
-  </div>
-  <div class="field">
-    <label for="ghPath">File Path</label>
-    <input type="text" id="ghPath" placeholder="timecard-data.json" autocomplete="off" autocapitalize="off">
-  </div>
-  <div class="field">
-    <label for="ghToken">Personal Access Token</label>
-    <input type="password" id="ghToken" placeholder="fine-grained token, repo-scoped" autocomplete="off">
-  </div>
-  <button class="btn btn-ghost" id="ghSaveBtn">Save Settings</button>
-  <div class="actions" style="margin-top:10px;">
-    <button class="btn btn-copy" id="ghBackupBtn">Backup Now</button>
-    <button class="btn btn-ghost" id="ghRestoreBtn">Restore from GitHub</button>
-  </div>
-  <div class="gh-status" id="ghStatus">Not configured yet.</div>
-</div>
+</details>
 
 <div class="toast" id="toast">Copied to clipboard</div>
 
@@ -469,6 +512,9 @@
   const clearBtn = document.getElementById('clearBtn');
   const toast = document.getElementById('toast');
   const weekSelect = document.getElementById('weekSelect');
+  const searchInput = document.getElementById('searchInput');
+  const searchResultsEl = document.getElementById('searchResults');
+  const searchEmptyEl = document.getElementById('searchEmpty');
   const exportBtn = document.getElementById('exportBtn');
   const importBtn = document.getElementById('importBtn');
   const importFileInput = document.getElementById('importFileInput');
@@ -637,8 +683,8 @@
   }
   populateTimeSelect(startInput);
   populateTimeSelect(stopInput);
-  startInput.value = '07:00';
-  stopInput.value = '15:30';
+  startInput.value = '06:00';
+  stopInput.value = '15:00';
 
   const STORAGE_KEY_ENTRIES = 'timecard_entries';
   const STORAGE_KEY_EQUIPMENT = 'timecard_equipmentDB';
@@ -1011,6 +1057,57 @@
     buildOutput(visible);
   }
 
+  // Searches across every entry, regardless of which week is currently being viewed.
+  function renderSearchResults(){
+    const query = searchInput.value.trim().toLowerCase();
+    searchResultsEl.innerHTML = '';
+
+    if(!query){
+      searchEmptyEl.style.display = 'none';
+      return;
+    }
+
+    const matches = entries
+      .filter(e => e.equip.toLowerCase().includes(query) || (e.desc && e.desc.toLowerCase().includes(query)))
+      .sort((a, b) => (b.date + b.start).localeCompare(a.date + a.start));
+
+    if(matches.length === 0){
+      searchEmptyEl.style.display = 'block';
+      return;
+    }
+    searchEmptyEl.style.display = 'none';
+
+    matches.forEach(e => {
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.innerHTML = `
+        <div class="info">
+          <div class="desc" style="margin-top:0; margin-bottom:2px;">${dayDateLabel(e.date)}</div>
+          <b>${escapeHtml(e.equip)}</b>
+          <div class="desc">${escapeHtml(e.desc)}</div>
+        </div>
+        <div class="hrs">
+          <div class="rounded">${formatHours(e.rounded)} hrs</div>
+          <div class="raw">${e.startLabel}–${e.stopLabel}</div>
+        </div>
+        <div class="actions-col">
+          <button class="edit" data-jump="${e.date}" title="Go to this week">&#8594;</button>
+        </div>
+      `;
+      searchResultsEl.appendChild(div);
+    });
+
+    searchResultsEl.querySelectorAll('[data-jump]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedWeekStart = weekStartISOForDate(btn.dataset.jump);
+        render();
+        document.querySelectorAll('details.collapsible').forEach(d => { d.open = false; });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  }
+  searchInput.addEventListener('input', renderSearchResults);
+
   function escapeHtml(str){
     const d = document.createElement('div');
     d.textContent = str;
@@ -1137,8 +1234,8 @@
     equipInput.value = '';
     descInput.value = '';
     dateInput.value = todayISO();
-    startInput.value = '07:00';
-    stopInput.value = '15:30';
+    startInput.value = '06:00';
+    stopInput.value = '15:00';
   }
 
   cancelEditBtn.addEventListener('click', exitEditMode);
