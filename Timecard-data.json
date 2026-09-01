@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "equip": "101-036",
+      "desc": "Setup",
+      "date": "2026-08-24",
+      "start": "06:00",
+      "stop": "15:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 9,
+      "rounded": 9,
+      "id": "emti4t1sk151il"
+    },
+    {
       "equip": "508-018",
       "desc": "—",
       "date": "2026-08-31",
@@ -27,6 +39,10 @@
   ],
   "equipmentDB": [
     {
+      "equip": "101-036",
+      "desc": "Setup"
+    },
+    {
       "equip": "302-038",
       "desc": "Slow stroke"
     },
@@ -35,5 +51,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T03:43:23.891Z"
+  "savedAt": "2026-09-01T03:52:47.371Z"
 }
