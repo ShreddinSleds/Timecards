@@ -191,9 +191,25 @@
       "raw": 6,
       "rounded": 6,
       "id": "emti4gzpr4pbl7"
+    },
+    {
+      "equip": "302-038",
+      "desc": "Slow stroke, found broken adjustment knob",
+      "date": "2026-09-01",
+      "start": "07:00",
+      "stop": "11:00",
+      "startLabel": "7:00 AM",
+      "stopLabel": "11:00 AM",
+      "raw": 4,
+      "rounded": 4,
+      "id": "emtixulky1lkax"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "302-038",
+      "desc": "Slow stroke, found broken adjustment knob"
+    },
     {
       "equip": "307-044",
       "desc": ""
@@ -215,13 +231,9 @@
       "desc": ""
     },
     {
-      "equip": "302-038",
-      "desc": "Slow stroke"
-    },
-    {
       "equip": "508-018",
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T14:28:14.981Z"
+  "savedAt": "2026-09-01T17:25:48.015Z"
 }
