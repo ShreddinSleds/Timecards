@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "equip": "101-036",
+      "desc": "—",
+      "date": "2026-08-19",
+      "start": "06:00",
+      "stop": "07:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "7:00 AM",
+      "raw": 1,
+      "rounded": 1,
+      "id": "emtirdnuz4hwp6"
+    },
+    {
       "equip": "204-005",
       "desc": "—",
       "date": "2026-08-20",
@@ -139,5 +151,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T14:24:07.915Z"
+  "savedAt": "2026-09-01T14:24:40.577Z"
 }
