@@ -1,6 +1,18 @@
 {
   "entries": [
     {
+      "equip": "204-005",
+      "desc": "—",
+      "date": "2026-08-21",
+      "start": "06:00",
+      "stop": "16:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "4:00 PM",
+      "raw": 10,
+      "rounded": 10,
+      "id": "emtirbo9i1lljh"
+    },
+    {
       "equip": "101-036",
       "desc": "Setup",
       "date": "2026-08-24",
@@ -87,6 +99,10 @@
   ],
   "equipmentDB": [
     {
+      "equip": "204-005",
+      "desc": ""
+    },
+    {
       "equip": "101-036",
       "desc": "Setup"
     },
@@ -99,5 +115,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T04:08:53.706Z"
+  "savedAt": "2026-09-01T14:23:07.333Z"
 }
