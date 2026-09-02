@@ -239,9 +239,25 @@
       "raw": 3,
       "rounded": 3,
       "id": "emtkhnu121andn"
+    },
+    {
+      "equip": "113-002",
+      "desc": "Engine bogging, picked up and replaced fuel filters",
+      "date": "2026-09-02",
+      "start": "12:00",
+      "stop": "15:00",
+      "startLabel": "12:00 PM",
+      "stopLabel": "3:00 PM",
+      "raw": 3,
+      "rounded": 3,
+      "id": "emtkhpk3b2ea8i"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "113-002",
+      "desc": "Engine bogging, picked up and replaced fuel filters"
+    },
     {
       "equip": "107-009",
       "desc": "Swap out sub and welding"
@@ -279,5 +295,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-02T19:28:11.263Z"
+  "savedAt": "2026-09-02T19:29:31.846Z"
 }
