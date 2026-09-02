@@ -215,9 +215,25 @@
       "raw": 4,
       "rounded": 4,
       "id": "emtj5g7nh1t6ui"
+    },
+    {
+      "equip": "501-018",
+      "desc": "Frame tilt issue",
+      "date": "2026-09-02",
+      "start": "06:00",
+      "stop": "09:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "9:00 AM",
+      "raw": 3,
+      "rounded": 3,
+      "id": "emtkbmdxi1zbd9"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "501-018",
+      "desc": "Frame tilt issue"
+    },
     {
       "equip": "204-005",
       "desc": "Engine cutting out. Fuel filters"
@@ -247,5 +263,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-01T20:58:33.710Z"
+  "savedAt": "2026-09-02T16:39:05.657Z"
 }
