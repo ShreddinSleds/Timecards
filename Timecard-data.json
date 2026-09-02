@@ -227,9 +227,25 @@
       "raw": 3,
       "rounded": 3,
       "id": "emtkbmdxi1zbd9"
+    },
+    {
+      "equip": "107-009",
+      "desc": "Swap out sub and welding",
+      "date": "2026-09-02",
+      "start": "09:00",
+      "stop": "12:00",
+      "startLabel": "9:00 AM",
+      "stopLabel": "12:00 PM",
+      "raw": 3,
+      "rounded": 3,
+      "id": "emtkhnu121andn"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "107-009",
+      "desc": "Swap out sub and welding"
+    },
     {
       "equip": "501-018",
       "desc": "Frame tilt issue"
@@ -263,5 +279,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-02T16:39:05.657Z"
+  "savedAt": "2026-09-02T19:28:11.263Z"
 }
