@@ -191,6 +191,14 @@
     display:flex;
     align-items: center;
   }
+  .entry.overlap{
+    border-left: 3px solid var(--danger);
+  }
+  .entry-warning{
+    color: var(--danger);
+    font-size: 0.72rem;
+    margin-top: 2px;
+  }
   .empty{
     color: var(--text-dim);
     font-size: 0.88rem;
@@ -507,6 +515,10 @@
   <button class="btn btn-add" id="addBtn">Add Entry</button>
   <button class="btn btn-ghost" id="cancelEditBtn" style="display:none; margin-top:8px;">Cancel Edit</button>
 </div>
+
+<div class="section-title">Today's Entries</div>
+<div class="entries" id="todayEntries"></div>
+<div class="empty" id="todayEmpty">No entries yet today.</div>
 
 <div class="section-title">Entries</div>
 <div class="entries" id="entries">
@@ -1274,42 +1286,67 @@
     render();
   }
 
-  function render(){
-    refreshWeekSelector();
-    const visible = getVisibleEntries();
+  // Flags any two entries on the same date whose time ranges overlap (e.g. entered 6-10am
+  // on one piece of equipment and 9-11am on another by mistake).
+  function findOverlappingIds(list){
+    const overlapping = new Set();
+    const byDate = {};
+    list.forEach(e => {
+      if(!byDate[e.date]){ byDate[e.date] = []; }
+      byDate[e.date].push(e);
+    });
+    Object.values(byDate).forEach(dayList => {
+      for(let i = 0; i < dayList.length; i++){
+        const aStart = toMinutes(dayList[i].start);
+        const aEnd = aStart + dayList[i].raw * 60;
+        for(let j = i + 1; j < dayList.length; j++){
+          const bStart = toMinutes(dayList[j].start);
+          const bEnd = bStart + dayList[j].raw * 60;
+          if(aStart < bEnd && bStart < aEnd){
+            overlapping.add(dayList[i].id);
+            overlapping.add(dayList[j].id);
+          }
+        }
+      }
+    });
+    return overlapping;
+  }
 
-    entriesEl.querySelectorAll('.entry').forEach(el => el.remove());
+  // Shared entry-list renderer used for both the weekly Entries list and Today's Entries.
+  function renderEntryList(containerEl, emptyEl, list, emptyText, overlapSet){
+    containerEl.querySelectorAll('.entry').forEach(el => el.remove());
 
-    if(visible.length === 0){
-      emptyMsg.style.display = 'block';
-      emptyMsg.textContent = entries.length === 0
-        ? 'No entries yet — add your first one above.'
-        : 'No entries for this week.';
-    } else {
-      emptyMsg.style.display = 'none';
-      visible.forEach(e => {
-        const div = document.createElement('div');
-        div.className = 'entry';
-        div.innerHTML = `
-          <div class="info">
-            <div class="desc" style="margin-top:0; margin-bottom:2px;">${dayDateLabel(e.date)}</div>
-            <b>${escapeHtml(e.equip)}</b>
-            <div class="desc">${escapeHtml(e.desc)}</div>
-          </div>
-          <div class="hrs">
-            <div class="rounded">${formatHours(e.rounded)} hrs</div>
-            <div class="raw">${e.startLabel}–${e.stopLabel}</div>
-          </div>
-          <div class="actions-col">
-            <button class="edit" data-id="${e.id}" title="Edit">&#9998;</button>
-            <button class="del" data-id="${e.id}" title="Remove">&times;</button>
-          </div>
-        `;
-        entriesEl.appendChild(div);
-      });
+    if(list.length === 0){
+      emptyEl.style.display = 'block';
+      emptyEl.textContent = emptyText;
+      return;
     }
+    emptyEl.style.display = 'none';
 
-    entriesEl.querySelectorAll('.del').forEach(btn => {
+    list.forEach(e => {
+      const isOverlap = overlapSet.has(e.id);
+      const div = document.createElement('div');
+      div.className = 'entry' + (isOverlap ? ' overlap' : '');
+      div.innerHTML = `
+        <div class="info">
+          <div class="desc" style="margin-top:0; margin-bottom:2px;">${dayDateLabel(e.date)}</div>
+          <b>${escapeHtml(e.equip)}</b>
+          <div class="desc">${escapeHtml(e.desc)}</div>
+          ${isOverlap ? '<div class="entry-warning">&#9888; Overlaps another entry this day</div>' : ''}
+        </div>
+        <div class="hrs">
+          <div class="rounded">${formatHours(e.rounded)} hrs</div>
+          <div class="raw">${e.startLabel}–${e.stopLabel}</div>
+        </div>
+        <div class="actions-col">
+          <button class="edit" data-id="${e.id}" title="Edit">&#9998;</button>
+          <button class="del" data-id="${e.id}" title="Remove">&times;</button>
+        </div>
+      `;
+      containerEl.appendChild(div);
+    });
+
+    containerEl.querySelectorAll('.del').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.id;
         if(editingId === id){ exitEditMode(); }
@@ -1319,11 +1356,31 @@
       });
     });
 
-    entriesEl.querySelectorAll('.edit').forEach(btn => {
+    containerEl.querySelectorAll('.edit').forEach(btn => {
       btn.addEventListener('click', () => {
         enterEditMode(btn.dataset.id);
       });
     });
+  }
+
+  function render(){
+    refreshWeekSelector();
+    const visible = getVisibleEntries();
+    const overlapSet = findOverlappingIds(entries);
+
+    renderEntryList(
+      entriesEl, emptyMsg, visible,
+      entries.length === 0 ? 'No entries yet — add your first one above.' : 'No entries for this week.',
+      overlapSet
+    );
+
+    const todayEntries = entries
+      .filter(e => e.date === todayISO())
+      .sort((a, b) => a.start.localeCompare(b.start));
+    renderEntryList(
+      document.getElementById('todayEntries'), document.getElementById('todayEmpty'),
+      todayEntries, 'No entries yet today.', overlapSet
+    );
 
     buildOutput(visible);
   }
@@ -1778,7 +1835,12 @@
     equipInput.value = '';
     descInput.value = '';
     equipInput.focus();
-    if(wasEditing){ exitEditMode(); }
+    if(wasEditing){
+      exitEditMode();
+    } else {
+      // Next entry probably picks up where this one left off (e.g. switching equipment mid-day).
+      startInput.value = stop;
+    }
 
     saveEntries();
     render();
