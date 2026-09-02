@@ -199,6 +199,69 @@
     font-size: 0.72rem;
     margin-top: 2px;
   }
+  .day-group{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .day-group-header{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: none;
+    border: none;
+    padding: 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    text-align: left;
+  }
+  .day-group-title{
+    font-weight: 700;
+    flex: 1;
+  }
+  .day-group-hrs{
+    font-weight: 700;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .day-group-caret{
+    color: var(--text-dim);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .day-group-body{
+    padding: 0 12px 12px;
+    border-top: 1px solid var(--line);
+  }
+  .day-group-entries{
+    display: flex;
+    flex-direction: column;
+  }
+  .day-group-entries .entry{
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 10px 0;
+  }
+  .day-group-entries .entry + .entry{
+    border-top: 1px dashed var(--line);
+  }
+  .day-group-entries .entry.overlap{
+    border-left: 3px solid var(--danger);
+    padding-left: 8px;
+  }
+  .day-group-ot{
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    font-size: 0.85rem;
+    color: var(--amber);
+  }
   .empty{
     color: var(--text-dim);
     font-size: 0.88rem;
@@ -1363,15 +1426,122 @@
     });
   }
 
+  // Tracks which day-boxes are expanded in the weekly Entries list (resets on reload — that's fine).
+  let expandedDays = new Set();
+
+  // Groups a list of entries by date into collapsible boxes: collapsed shows day + total hours,
+  // expanded shows every entry plus that day's OT breakdown.
+  function renderGroupedEntries(containerEl, emptyEl, list, emptyText, overlapSet, otByDate){
+    containerEl.querySelectorAll('.day-group').forEach(el => el.remove());
+
+    if(list.length === 0){
+      emptyEl.style.display = 'block';
+      emptyEl.textContent = emptyText;
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    const byDate = {};
+    const order = [];
+    list.forEach(e => {
+      if(!byDate[e.date]){ byDate[e.date] = []; order.push(e.date); }
+      byDate[e.date].push(e);
+    });
+
+    order.forEach(date => {
+      const dayEntries = byDate[date];
+      const dayHours = dayEntries.reduce((s, e) => s + e.rounded, 0);
+      const ot = otByDate.get(date) || { regular: 0, ot15: 0, ot20: 0, shortRest: false };
+      const isOpen = expandedDays.has(date);
+
+      const noteParts = [];
+      if(holidaySet.has(date)) noteParts.push(holidayLabels[date] || 'Holiday');
+      if(ot.shortRest) noteParts.push('Short-rest');
+      const dayNote = noteParts.length ? ` <span class="log-ot">(${noteParts.join(', ')})</span>` : '';
+
+      const otBadges = [];
+      if(ot.regular > 0) otBadges.push(`${formatHours(ot.regular)} reg`);
+      if(ot.ot15 > 0) otBadges.push(`${formatHours(ot.ot15)} @1.5x`);
+      if(ot.ot20 > 0) otBadges.push(`${formatHours(ot.ot20)} @2x`);
+
+      const group = document.createElement('div');
+      group.className = 'day-group';
+      group.innerHTML = `
+        <button class="day-group-header" data-date="${date}">
+          <span class="day-group-title">${dayDateLabel(date)}${dayNote}</span>
+          <span class="day-group-hrs">${formatHours(dayHours)} hrs</span>
+          <span class="day-group-caret" style="transform:rotate(${isOpen ? 90 : 0}deg);">&#9656;</span>
+        </button>
+        <div class="day-group-body" style="display:${isOpen ? 'block' : 'none'};">
+          <div class="day-group-entries">
+            ${dayEntries.map(e => `
+              <div class="entry${overlapSet.has(e.id) ? ' overlap' : ''}">
+                <div class="info">
+                  <b>${escapeHtml(e.equip)}</b>
+                  <div class="desc">${escapeHtml(e.desc)}</div>
+                  ${overlapSet.has(e.id) ? '<div class="entry-warning">&#9888; Overlaps another entry this day</div>' : ''}
+                </div>
+                <div class="hrs">
+                  <div class="rounded">${formatHours(e.rounded)} hrs</div>
+                  <div class="raw">${e.startLabel}–${e.stopLabel}</div>
+                </div>
+                <div class="actions-col">
+                  <button class="edit" data-id="${e.id}" title="Edit">&#9998;</button>
+                  <button class="del" data-id="${e.id}" title="Remove">&times;</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          ${otBadges.length ? `<div class="day-group-ot">${otBadges.join(' · ')}</div>` : ''}
+        </div>
+      `;
+      containerEl.appendChild(group);
+    });
+
+    containerEl.querySelectorAll('.day-group-header').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const date = btn.dataset.date;
+        const body = btn.nextElementSibling;
+        const caret = btn.querySelector('.day-group-caret');
+        if(expandedDays.has(date)){
+          expandedDays.delete(date);
+          body.style.display = 'none';
+          caret.style.transform = 'rotate(0deg)';
+        } else {
+          expandedDays.add(date);
+          body.style.display = 'block';
+          caret.style.transform = 'rotate(90deg)';
+        }
+      });
+    });
+
+    containerEl.querySelectorAll('.del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.id;
+        if(editingId === id){ exitEditMode(); }
+        entries = entries.filter(x => x.id !== id);
+        saveEntries();
+        render();
+      });
+    });
+
+    containerEl.querySelectorAll('.edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        enterEditMode(btn.dataset.id);
+      });
+    });
+  }
+
   function render(){
     refreshWeekSelector();
     const visible = getVisibleEntries();
     const overlapSet = findOverlappingIds(entries);
+    const otByDate = computeAllDailyOT();
 
-    renderEntryList(
+    renderGroupedEntries(
       entriesEl, emptyMsg, visible,
       entries.length === 0 ? 'No entries yet — add your first one above.' : 'No entries for this week.',
-      overlapSet
+      overlapSet, otByDate
     );
 
     const todayEntries = entries
@@ -1382,7 +1552,7 @@
       todayEntries, 'No entries yet today.', overlapSet
     );
 
-    buildOutput(visible);
+    buildOutput(visible, otByDate);
   }
 
   // Searches across every entry, regardless of which week is currently being viewed.
@@ -1553,11 +1723,9 @@
     return { regular, ot15, ot20 };
   }
 
-  function buildOutput(visible){
+  function buildOutput(visible, otByDate){
     const totalRounded = visible.reduce((sum, e) => sum + e.rounded, 0);
     totalRoundedEl.textContent = formatHours(totalRounded) + ' hrs';
-
-    const otByDate = computeAllDailyOT();
 
     if(visible.length === 0){
       outputEl.value = '';
