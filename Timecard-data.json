@@ -263,9 +263,25 @@
       "raw": 4.5,
       "rounded": 4.5,
       "id": "emtlsi7cf16xv2"
+    },
+    {
+      "equip": "501-018",
+      "desc": "Frame tilt issue fixed",
+      "date": "2026-09-03",
+      "start": "10:30",
+      "stop": "15:00",
+      "startLabel": "10:30 AM",
+      "stopLabel": "3:00 PM",
+      "raw": 4.5,
+      "rounded": 4.5,
+      "id": "emtm4mq2513jt1"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "501-018",
+      "desc": "Frame tilt issue fixed"
+    },
     {
       "equip": "107-003",
       "desc": "Repair swivel threads and re install"
@@ -277,10 +293,6 @@
     {
       "equip": "107-009",
       "desc": "Swap out sub and welding"
-    },
-    {
-      "equip": "501-018",
-      "desc": "Frame tilt issue"
     },
     {
       "equip": "204-005",
@@ -307,5 +319,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-03T17:19:30.143Z"
+  "savedAt": "2026-09-03T22:58:56.411Z"
 }
