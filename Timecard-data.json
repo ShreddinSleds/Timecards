@@ -251,9 +251,25 @@
       "raw": 3,
       "rounded": 3,
       "id": "emtkhpk3b2ea8i"
+    },
+    {
+      "equip": "107-003",
+      "desc": "Repair swivel threads and re install",
+      "date": "2026-09-03",
+      "start": "06:00",
+      "stop": "10:30",
+      "startLabel": "6:00 AM",
+      "stopLabel": "10:30 AM",
+      "raw": 4.5,
+      "rounded": 4.5,
+      "id": "emtlsi7cf16xv2"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "107-003",
+      "desc": "Repair swivel threads and re install"
+    },
     {
       "equip": "113-002",
       "desc": "Engine bogging, picked up and replaced fuel filters"
@@ -283,10 +299,6 @@
       "desc": ""
     },
     {
-      "equip": "107-003",
-      "desc": ""
-    },
-    {
       "equip": "101-036",
       "desc": ""
     },
@@ -295,5 +307,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-02T19:29:51.226Z"
+  "savedAt": "2026-09-03T17:19:30.143Z"
 }
