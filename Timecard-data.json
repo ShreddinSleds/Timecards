@@ -275,9 +275,25 @@
       "raw": 4.5,
       "rounded": 4.5,
       "id": "emtm4mq2513jt1"
+    },
+    {
+      "equip": "Intric pump rebuild",
+      "desc": "—",
+      "date": "2026-09-04",
+      "start": "06:00",
+      "stop": "14:00",
+      "startLabel": "6:00 AM",
+      "stopLabel": "2:00 PM",
+      "raw": 8,
+      "rounded": 8,
+      "id": "emtn08p4412qqn"
     }
   ],
   "equipmentDB": [
+    {
+      "equip": "Intric pump rebuild",
+      "desc": ""
+    },
     {
       "equip": "501-018",
       "desc": "Frame tilt issue fixed"
@@ -319,5 +335,5 @@
       "desc": ""
     }
   ],
-  "savedAt": "2026-09-03T22:58:56.411Z"
+  "savedAt": "2026-09-04T13:43:50.139Z"
 }
